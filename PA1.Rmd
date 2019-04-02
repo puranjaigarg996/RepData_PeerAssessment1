@@ -1,0 +1,143 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+output: 
+  html_document:
+    keep_md: true
+---
+
+
+## Loading and preprocessing the data
+```{r}
+library(magrittr)
+library(dplyr)
+library(ggplot2)
+```
+
+##Preprocessing
+
+```{r}
+# get_data: Get required data into a df
+get_data <- function() {
+  #data_url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+  #download.file(data_url, destfile = "~/Downloads/activity_monitoring_data.zip") # ???????????????
+  #unzip("~/Downloads/activity_monitoring_data.zip", exdir = "~/Downloads/") # ?????????
+  df <- read.csv("activity.csv", stringsAsFactors = FALSE)
+  df$date <- as.Date(df$date)
+  return(df)
+}
+df <- get_data()
+```
+
+## What is mean total number of steps taken per day?
+##Total no. of steps
+
+```{r}
+summarized_df <- df %>%
+  group_by(date) %>%
+  summarise(ttl_steps = sum(steps, na.rm = TRUE))
+summarized_df
+```
+##histogram
+```{r}
+ggplot(summarized_df, aes(x = ttl_steps)) +
+  geom_histogram(bins = 13, fill = rgb(0.5, 0, 0, 1)) +
+  xlab("") +
+  ggtitle("plot") +
+  theme_minimal() +
+  theme(text = element_text(family = "serif"))
+
+```
+
+##mean and median 
+```{r}
+mean_ttl_steps <- mean(summarized_df$ttl_steps)
+median_ttl_steps <- median(summarized_df$ttl_steps)
+mean_ttl_steps
+median_ttl_steps
+```
+
+
+## What is the average daily activity pattern?
+##time series plot
+```{r}
+summarized_df <- df %>%
+  group_by(interval) %>%
+  summarise(avg_steps = mean(steps, na.rm = TRUE))
+
+ggplot(summarized_df, aes(x = interval, y = avg_steps)) +
+  geom_line(color = "green") +
+  theme_minimal()
+```
+
+##max steps
+```{r}
+max_steps <- max(summarized_df$avg_steps)
+summarized_df %>%
+  filter(avg_steps == max_steps)
+```
+
+
+## Imputing missing values
+##total values
+```{r}
+is_complete <- complete.cases(df)
+sum(!is_complete)
+```
+
+##mean for 5 min
+```{r}
+interval_avg <- df %>%
+  group_by(interval) %>%
+  summarise(avg_steps = mean(steps, na.rm = TRUE))
+```
+##filled dataset
+```{r}
+df_imputed <- df
+for (i in 1:nrow(df_imputed)) {
+  if (is.na(df_imputed[i, "steps"]) == TRUE) {
+    data_interval <- df_imputed[i, "interval"]
+    imputed_value <- interval_avg[interval_avg$interval == data_interval, "avg_steps"]
+    df_imputed[i, "steps"] <- imputed_value
+  } else {
+    df_imputed[i, "steps"] <- df_imputed[i, "steps"]
+  }
+}
+```
+##plot
+```{r}
+summarized_df <- df_imputed %>%
+  group_by(date) %>%
+  summarise(ttl_steps = sum(steps, na.rm = TRUE))
+
+ggplot(summarized_df, aes(x = ttl_steps)) +
+  geom_histogram(bins = 15, fill = rgb(0.5, 0.5, 0.5, 0.5)) +
+  xlab("") +
+  ggtitle("plot") +
+  theme_minimal() +
+  theme(text = element_text(family = "serif"))
+
+```
+
+```{r}
+mean_ttl_steps <- mean(summarized_df$ttl_steps)
+median_ttl_steps <- median(summarized_df$ttl_steps)
+mean_ttl_steps
+median_ttl_steps
+```
+
+
+## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+df$weekday_indicator <- ifelse(weekdays(df$date) %in% c("Saturday", "Sunday"), "weekend", "weekday")
+
+summarized_df <- df %>%
+  group_by(interval, weekday_indicator) %>%
+  summarise(avg_steps = mean(steps, na.rm = TRUE))
+
+ggplot(summarized_df, aes(x = interval, y = avg_steps)) +
+  geom_line(color = "blue") +
+  facet_wrap(~weekday_indicator) +
+  theme_minimal()
+
+```
+
